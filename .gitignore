@@ -1,0 +1,7 @@
+build/
+install/
+log/
+launch_logs/
+src/mujoco_ros_pkgs/
+*.pyc
+__pycache__/
