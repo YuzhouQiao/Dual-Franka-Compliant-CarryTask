@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<robot name="long_bar">
+  <link name="bar_link">
+    <!-- Visual: 蓝色长方体 -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.4 0.04 0.04"/>
+      </geometry>
+      <material name="Blue">
+        <color rgba="0 0 1 1"/>
+      </material>
+    </visual>
+    
+    <!-- Collision: 碰撞属性 -->
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.4 0.04 0.04"/>
+      </geometry>
+    </collision>
+    
+    <!-- Inertial: 惯性矩阵 (m=0.5kg) -->
+    <!-- Ixx = 1/12 * 0.5 * (0.04^2 + 0.04^2) = 0.000133 -->
+    <!-- Iyy = 1/12 * 0.5 * (0.4^2 + 0.04^2) = 0.006733 -->
+    <!-- Izz = 1/12 * 0.5 * (0.4^2 + 0.04^2) = 0.006733 -->
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.000133" ixy="0.0" ixz="0.0" iyy="0.006733" iyz="0.0" izz="0.006733"/>
+    </inertial>
+  </link>
+
+  <!-- Gazebo 特定材质设置 -->
+  <gazebo reference="bar_link">
+    <material>Gazebo/Blue</material>
+    <mu1>0.5</mu1> <!-- 摩擦系数 -->
+    <mu2>0.5</mu2>
+  </gazebo>
+</robot>

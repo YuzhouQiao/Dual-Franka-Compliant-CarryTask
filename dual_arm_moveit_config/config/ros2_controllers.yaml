@@ -1,0 +1,109 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 1000  # Hz
+
+    # === 1. 注册控制器列表 ===
+    
+    # 关节状态广播 (必须)
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    # 双臂协同控制器
+    dual_arm_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    # 左臂独立控制器
+    panda_1_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    # 右臂独立控制器
+    panda_2_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    # 左手夹爪控制器
+    panda_1_hand_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    # 右手夹爪控制器
+    panda_2_hand_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+# === 2. 配置控制器参数 ===
+
+dual_arm_controller:
+  ros__parameters:
+    joints:
+      - panda_1_joint1
+      - panda_1_joint2
+      - panda_1_joint3
+      - panda_1_joint4
+      - panda_1_joint5
+      - panda_1_joint6
+      - panda_1_joint7
+      - panda_2_joint1
+      - panda_2_joint2
+      - panda_2_joint3
+      - panda_2_joint4
+      - panda_2_joint5
+      - panda_2_joint6
+      - panda_2_joint7
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    # [关键修复] 加小数点，强制为 double 类型
+    state_publish_rate: 50.0
+    action_monitor_rate: 20.0
+
+panda_1_controller:
+  ros__parameters:
+    joints:
+      - panda_1_joint1
+      - panda_1_joint2
+      - panda_1_joint3
+      - panda_1_joint4
+      - panda_1_joint5
+      - panda_1_joint6
+      - panda_1_joint7
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+
+panda_2_controller:
+  ros__parameters:
+    joints:
+      - panda_2_joint1
+      - panda_2_joint2
+      - panda_2_joint3
+      - panda_2_joint4
+      - panda_2_joint5
+      - panda_2_joint6
+      - panda_2_joint7
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+
+panda_1_hand_controller:
+  ros__parameters:
+    joints:
+      - panda_1_finger_joint1
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+
+panda_2_hand_controller:
+  ros__parameters:
+    joints:
+      - panda_2_finger_joint1
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity

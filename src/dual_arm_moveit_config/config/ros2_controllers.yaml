@@ -1,0 +1,106 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 1000  # Hz
+
+    # === 1. 注册控制器列表 ===
+    
+    # 关节状态广播 (必须)
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    # 双臂协同控制器
+    #dual_arm_controller:
+     # type: joint_trajectory_controller/JointTrajectoryController
+
+    # 左臂独立控制器
+    panda_1_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    # 右臂独立控制器
+    panda_2_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    # [新增] 左手夹爪控制器 (注意类型)
+    panda_1_hand_controller:
+      type: position_controllers/GripperActionController
+
+    # [新增] 右手夹爪控制器
+    panda_2_hand_controller:
+      type: position_controllers/GripperActionController
+
+# === 2. 配置控制器参数 ===
+
+#dual_arm_controller:
+ # ros__parameters:
+ #   joints:
+  #    - panda_1_joint1
+   #   - panda_1_joint2
+   #   - panda_1_joint3
+   #   - panda_1_joint4
+   #   - panda_1_joint5
+   #   - panda_1_joint6
+   #   - panda_1_joint7
+   #   - panda_2_joint1
+   #   - panda_2_joint2
+   #   - panda_2_joint3
+   #   - panda_2_joint4
+   #   - panda_2_joint5
+   #   - panda_2_joint6
+   #   - panda_2_joint7
+    #command_interfaces:
+     # - position
+    #state_interfaces:
+     # - position
+    #  - velocity
+
+panda_1_controller:
+  ros__parameters:
+    joints:
+      - panda_1_joint1
+      - panda_1_joint2
+      - panda_1_joint3
+      - panda_1_joint4
+      - panda_1_joint5
+      - panda_1_joint6
+      - panda_1_joint7
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+
+panda_2_controller:
+  ros__parameters:
+    joints:
+      - panda_2_joint1
+      - panda_2_joint2
+      - panda_2_joint3
+      - panda_2_joint4
+      - panda_2_joint5
+      - panda_2_joint6
+      - panda_2_joint7
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+
+# [新增] 左手夹爪参数
+panda_1_hand_controller:
+  ros__parameters:
+    # 对应 URDF 中的关节名
+    joint: panda_1_finger_joint1
+    # 模拟仿真参数
+    goal_tolerance: 0.01
+    stall_velocity_threshold: 0.001
+    stall_timeout: 1.0
+    allow_stall: true
+
+# [新增] 右手夹爪参数
+panda_2_hand_controller:
+  ros__parameters:
+    joint: panda_2_finger_joint1
+    goal_tolerance: 0.01
+    stall_velocity_threshold: 0.001
+    stall_timeout: 1.0
+    allow_stall: true
