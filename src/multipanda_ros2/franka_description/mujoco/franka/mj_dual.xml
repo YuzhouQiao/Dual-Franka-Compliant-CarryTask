@@ -243,10 +243,8 @@
                         <geom mesh="hand_3" material="white" class="visual"/>
                         <geom mesh="hand_4" material="off_white" class="visual"/>
                         <geom mesh="hand_c" class="collision"/>
-                        <body pos="0 0 0.1035">
-                          <inertial mass="1e-10" pos="0 0 0" diaginertia="1e-10 1e-10 1e-10"/>
-                          <site name="mj_left_ee_site" pos="0 0.0 0.0" size=".01 .01 .01" type="ellipsoid" rgba=".8 .2 .1 0"/>
-                        </body>  
+                          <site name="mj_left_ee_site" pos="0 0 0.1035" size=".01 .01 .01" type="ellipsoid" rgba=".8 .2 .1 0"/>
+                          
                         <body name="mj_left_left_finger" pos="0 0 0.0584" gravcomp="1">
                           <inertial mass="0.015" pos="0 0 0"
                               diaginertia="2.375e-6 2.375e-6 7.5e-7"/>
@@ -394,10 +392,8 @@
                         <geom mesh="hand_3" material="white" class="visual"/>
                         <geom mesh="hand_4" material="off_white" class="visual"/>
                         <geom mesh="hand_c" class="collision"/>
-                        <body pos="0 0 0.1035">
-                          <inertial mass="1e-10" pos="0 0 0" diaginertia="1e-10 1e-10 1e-10"/>
-                          <site name="mj_right_ee_site" pos="0 0.0 0.0" size=".01 .01 .01" type="ellipsoid" rgba=".8 .2 .1 0"/>
-                        </body>  
+                          <site name="mj_right_ee_site" pos="0 0 0.1035" size=".01 .01 .01" type="ellipsoid" rgba=".8 .2 .1 0"/>
+                          
                         <body name="mj_right_left_finger" pos="0 0 0.0584" gravcomp="1">
                           <inertial mass="0.015" pos="0 0 0"
                               diaginertia="2.375e-6 2.375e-6 7.5e-7"/>
@@ -527,4 +523,11 @@
   </actuator>
 
 
+
+  <sensor>
+    <force name="mj_left_hand_ft_sensor_force" site="mj_left_ee_site"/>
+    <torque name="mj_left_hand_ft_sensor_torque" site="mj_left_ee_site"/>
+    <force name="mj_right_hand_ft_sensor_force" site="mj_right_ee_site"/>
+    <torque name="mj_right_hand_ft_sensor_torque" site="mj_right_ee_site"/>
+  </sensor>
 </mujoco>

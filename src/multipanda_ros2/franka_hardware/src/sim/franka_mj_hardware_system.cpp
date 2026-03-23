@@ -157,6 +157,16 @@ bool FrankaMjHardwareSystem::initSim(
     }
 
     // ===== Initialize grasp weld constraints (dual: left + right) =====
+    // Initialize sensors
+    int num_sensors = 0;
+    for(const auto& s : info_.sensors) num_sensors += s.state_interfaces.size();
+    hw_sensor_states_.resize(num_sensors, 0.0);
+    for(const auto& s : info_.sensors) {
+      int force_id = mj_name2id(m_, mjOBJ_SENSOR, (s.name + "_force").c_str());
+      int torque_id = mj_name2id(m_, mjOBJ_SENSOR, (s.name + "_torque").c_str());
+      ft_sensor_mj_ids_[s.name] = {force_id, torque_id};
+    }
+    
     weld_eq_id_ = mj_name2id(m_, mjOBJ_EQUALITY, "grasp_weld");
     if (weld_eq_id_ >= 0) {
         hand_body_id_ = mj_name2id(m_, mjOBJ_BODY, "mj_left_hand");
@@ -179,6 +189,7 @@ bool FrankaMjHardwareSystem::initSim(
             [this](const std_msgs::msg::Bool::SharedPtr msg) {
                 weld_active_desired_.store(msg->data);
             });
+        adaptive_pub_ = weld_node_->create_publisher<std_msgs::msg::Float64MultiArray>("/adaptive_impedance_params", 10);
         executor_->add_node(weld_node_);
         
         RCLCPP_INFO(getLogger(), "Grasp weld constraint ready: eq_id=%d, hand_body=%d, rod_body=%d",
@@ -223,6 +234,17 @@ std::vector<StateInterface> FrankaMjHardwareSystem::export_state_interfaces() {
         reinterpret_cast<double*>(  // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
             &model_pointers_[arm_container_pair.first])));
   }
+
+  int sensor_idx = 0;
+  for (const auto& sensor : info_.sensors) {
+    for (const auto& interface : sensor.state_interfaces) {
+      if (sensor_idx < hw_sensor_states_.size()) {
+        state_interfaces.emplace_back(StateInterface(
+            sensor.name, interface.name, &hw_sensor_states_[sensor_idx++]));
+      }
+    }
+  }
+
   return state_interfaces;
 }
 
@@ -296,6 +318,33 @@ hardware_interface::return_type FrankaMjHardwareSystem::read(const rclcpp::Time&
 //   for(auto& obj_pair: mj_objs_){
 //     updateObjectContainer(obj_pair.first);
 //   }
+
+  int current_idx = 0;
+  for (const auto& sensor : info_.sensors) {
+    auto ids = ft_sensor_mj_ids_[sensor.name];
+    int force_id = ids.first;
+    int torque_id = ids.second;
+    
+    // Copy force (3 axes) if sensor was found
+    if (force_id >= 0 && m_->sensor_dim[force_id] == 3) {
+      int adr = m_->sensor_adr[force_id];
+      hw_sensor_states_[current_idx++] = d_->sensordata[adr];
+      hw_sensor_states_[current_idx++] = d_->sensordata[adr+1];
+      hw_sensor_states_[current_idx++] = d_->sensordata[adr+2];
+    } else {
+      current_idx += 3;
+    }
+    
+    // Copy torque (3 axes)
+    if (torque_id >= 0 && m_->sensor_dim[torque_id] == 3) {
+      int adr = m_->sensor_adr[torque_id];
+      hw_sensor_states_[current_idx++] = d_->sensordata[adr];
+      hw_sensor_states_[current_idx++] = d_->sensordata[adr+1];
+      hw_sensor_states_[current_idx++] = d_->sensordata[adr+2];
+    } else {
+      current_idx += 3;
+    }
+  }
   
   return hardware_interface::return_type::OK;
 }
@@ -303,6 +352,42 @@ hardware_interface::return_type FrankaMjHardwareSystem::read(const rclcpp::Time&
 hardware_interface::return_type FrankaMjHardwareSystem::write(const rclcpp::Time& /*time*/,
                                                                const rclcpp::Duration& /*period*/) {
 //   std::lock_guard<std::mutex> guard(mj_mutex_);
+  // ---------------- ADAPTIVE ADMITTANCE CALCULATION ----------------
+  static int loop_cnt = 0;
+  static double current_K_scale = 1.0;
+  static double current_D_scale = 1.0;
+
+  // 获取左右臂的FT传感器ID
+  int l_force_id = mj_name2id(m_, mjOBJ_SENSOR, "mj_left_hand_ft_sensor_force");
+  int r_force_id = mj_name2id(m_, mjOBJ_SENSOR, "mj_right_hand_ft_sensor_force");
+
+  if (l_force_id >= 0 && r_force_id >= 0) {
+      int l_adr = m_->sensor_adr[l_force_id];
+      int r_adr = m_->sensor_adr[r_force_id];
+      double ly = d_->sensordata[l_adr + 1]; 
+      double ry = d_->sensordata[r_adr + 1];
+      
+      double internal_stress = std::abs(ly + ry) / 2.0;
+
+      double target_K = 1.0;
+      double target_D = 1.0;
+      if (internal_stress > 2.0) {
+          target_K = std::max(0.1, 1.0 - 0.08 * (internal_stress - 2.0));
+          target_D = std::min(2.5, 1.0 + 0.15 * (internal_stress - 2.0));
+      }
+
+      current_K_scale = 0.95 * current_K_scale + 0.05 * target_K;
+      current_D_scale = 0.95 * current_D_scale + 0.05 * target_D;
+      
+      if (loop_cnt % 10 == 0 && adaptive_pub_) {
+          std_msgs::msg::Float64MultiArray msg;
+          msg.data.push_back(current_K_scale * 100.0);
+          msg.data.push_back(current_D_scale * 100.0);
+          adaptive_pub_->publish(msg);
+      }
+      loop_cnt++;
+  }
+  // -----------------------------------------------------------------
   for(auto& arm_container_pair: arms_){
     auto &arm = arm_container_pair.second;
     if (std::any_of(arm.hw_commands_joint_effort_.begin(), arm.hw_commands_joint_effort_.end(),
@@ -325,12 +410,21 @@ hardware_interface::return_type FrankaMjHardwareSystem::write(const rclcpp::Time
         }
         break;
       case ControlMode::JointPosition:
+      {
+        static const double kp_gains[7] = {300.0, 300.0, 200.0, 200.0, 80.0, 80.0, 80.0};
+        static const double kv_gains[7] = { 40.0,  40.0,  25.0,  25.0, 10.0, 10.0, 10.0};
+
         for(size_t i = 0; i < kNumberOfJoints; i++){
           d_->ctrl[arm.robot_->act_pos_indices_[i]] = arm.hw_commands_joint_position_[i];
           d_->ctrl[arm.robot_->act_vel_indices_[i]] = 0.0;  // velocity servo ctrl=0 → τ_d = -kv·q̇（PD的D项）
           d_->ctrl[arm.robot_->act_trq_indices_[i]] = 0.0;  // 确保力矩通道关闭
+
+          // 根据自适应因子动态调整 PD 参数 (实现自适应导纳)
+          set_position_servo(m_, arm.robot_->act_pos_indices_[i], kp_gains[i] * current_K_scale);
+          set_velocity_servo(m_, arm.robot_->act_vel_indices_[i], kv_gains[i] * current_D_scale);
         }
         break;
+      }
       case ControlMode::JointVelocity:
         for(size_t i = 0; i < kNumberOfJoints; i++){
           d_->ctrl[arm.robot_->act_vel_indices_[i]] = arm.hw_commands_joint_velocity_[i];

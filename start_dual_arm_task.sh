@@ -45,6 +45,26 @@ echo "========================================"
 echo "  双臂搬运任务 - 完整启动"
 echo "========================================"
 echo ""
+
+# 提示用户选择控制模式
+echo "请选择要运行的实验模式:"
+echo "  1) rigid             - 刚性对照模式 (无导纳柔顺, 无CHOMP)"
+echo "  2) compliant         - 柔顺控制模式 (强导纳柔顺, 无CHOMP)"
+echo "  3) chomp_only        - 仅限优化模式 (无导纳柔顺, 强CHOMP顺滑)"
+echo "  4) compliant_chomp   - 全功能模式   (强导纳柔顺 + 强CHOMP顺滑) [默认]"
+read -p "请输入模式编号 [默认: 4]: " MODE_SELECTION
+
+case "$MODE_SELECTION" in
+    1) CONTROL_MODE="rigid" ;;
+    2) CONTROL_MODE="compliant" ;;
+    3) CONTROL_MODE="chomp_only" ;;
+    4) CONTROL_MODE="compliant_chomp" ;;
+    *) CONTROL_MODE="compliant_chomp" ;; # 默认选4
+esac
+
+echo ""
+echo "✅ 选择的模式: ===[ $CONTROL_MODE ]==="
+echo ""
 echo "日志目录: $LOG_DIR"
 echo "诊断日志: $DIAG_LOG"
 echo ""
@@ -193,13 +213,13 @@ echo "✓ MoveIt2 和 MuJoCo 已启动"
 echo ""
 
 # 4. 启动任务节点
-echo "[4/4] 启动双臂搬运任务节点..."
+echo "[4/5] 启动双臂搬运任务节点 ($CONTROL_MODE 模式)..."
 sleep 5
 
 TASK_LOG="${LOG_DIR}/dual_arm_task_${TIMESTAMP}.log"
 echo "日志: $TASK_LOG"
 
-ros2 launch dual_arm_carry_task dual_arm_carry_task.launch.py > "$TASK_LOG" 2>&1 &
+ros2 launch dual_arm_carry_task dual_arm_carry_task.launch.py control_mode:=${CONTROL_MODE} > "$TASK_LOG" 2>&1 &
 TASK_PID=$!
 echo "进程 PID: $TASK_PID"
 echo $TASK_PID >> "$PID_FILE"
@@ -213,8 +233,16 @@ if ! ps -p $TASK_PID > /dev/null; then
 fi
 
 echo ""
+# 5. 启动传感器监控及控制参数 GUI
+echo "[5/5] 启动传感器可视化与参数调优 GUI..."
+python3 "${WORKSPACE_DIR}/sensor_dashboard.py" "$CONTROL_MODE" > "${LOG_DIR}/sensor_gui_${TIMESTAMP}.log" 2>&1 &
+GUI_PID=$!
+echo "进程 PID: $GUI_PID"
+echo $GUI_PID >> "$PID_FILE"
+
+echo ""
 echo "========================================"
-echo "  ✓ 所有组件已启动"
+echo "  ✓ 所有组件及 GUI 已启动"
 echo "========================================"
 echo ""
 echo "组件状态:"
@@ -245,9 +273,28 @@ echo "  • 空格键: 暂停/继续仿真"
 echo "  • Backspace: 重置仿真"
 echo ""
 echo "========================================"
-echo "所有组件已启动，按 Ctrl+C 停止"
+echo "所有组件已顺利启动！机器开始全自动执行任务流程..."
+echo "注意: 数据采集端会在RETREAT任务宣告结束后自动闭合，"
+echo "      届时将在此脚本末尾，利用CSV生成一份完整的全局质量报告图！"
+echo "      若需要中途强制中断，请随时按 Ctrl+C"
 echo "========================================"
 echo ""
 
-# 等待用户按 Ctrl+C
+# 监控 GUI 进程，直到其因收到任务 DONE 状态发布而自动安全退出 (耗时约几十秒)
+wait $GUI_PID
+
+echo ""
+echo "========================================"
+echo "🎓 监测到全流程搬运已完成，开始读取整周期CSV数据并绘制高精度分析图..."
+echo "========================================"
+python3 "${WORKSPACE_DIR}/plot_experiment_results.py"
+
+echo ""
+echo "⭐⭐图表计算/输出完毕！任务圆满结束。⭐⭐"
+echo "请前往 mujoco_franka/franka_ws/experiment_data 文件夹查看此轮的对比结果图。"
+echo ""
+echo "==> 现在，你可以安全地按 Ctrl+C 彻底关闭所有后台 ROS 仿真进程了！ <=="
+echo ""
+
+# 继续等待所有进程(Mujoco/Moveit等)直到用户手动中断
 wait

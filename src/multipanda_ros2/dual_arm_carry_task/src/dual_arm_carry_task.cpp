@@ -29,6 +29,7 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <std_msgs/msg/bool.hpp>
+#include <std_msgs/msg/string.hpp>
 
 #include <moveit/planning_scene/planning_scene.h>
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
@@ -74,6 +75,7 @@ public:
         
         left_arm_group_ = this->get_parameter("left_arm_group").as_string();
         right_arm_group_ = this->get_parameter("right_arm_group").as_string();
+        task_status_pub_ = this->create_publisher<std_msgs::msg::String>("/task_status", 10);
         dual_arm_group_ = this->get_parameter("dual_arm_group").as_string();
         approach_height_ = this->get_parameter("approach_height").as_double();
         grasp_height_ = this->get_parameter("grasp_height").as_double();
@@ -206,6 +208,11 @@ public:
         if (current_state_ == TaskState::DONE) {
             RCLCPP_INFO(this->get_logger(), "\n========================================");
             RCLCPP_INFO(this->get_logger(), "    ✓ 任务完成！");
+            std_msgs::msg::String msg;
+            msg.data = "DONE";
+            task_status_pub_->publish(msg);
+            RCLCPP_INFO(this->get_logger(), "已发布任务完成状态(DONE)。");
+
             RCLCPP_INFO(this->get_logger(), "========================================\n");
         } else if (current_state_ == TaskState::ERROR) {
             RCLCPP_ERROR(this->get_logger(), "\n========================================");
@@ -215,6 +222,7 @@ public:
     }
 
 private:
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr task_status_pub_;
     using GripperAction = control_msgs::action::GripperCommand;
     using GripperGoalHandle = rclcpp_action::ClientGoalHandle<GripperAction>;
     

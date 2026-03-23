@@ -86,6 +86,7 @@ def launch_setup(context, *args, **kwargs):
                 'approach_height': LaunchConfiguration('approach_height'),
                 'grasp_height': LaunchConfiguration('grasp_height'),
                 'lift_height': LaunchConfiguration('lift_height'),
+                'control_mode': LaunchConfiguration('control_mode'),
                 'use_sim_time': True,
             }
         ]
@@ -116,6 +117,12 @@ def generate_launch_description():
         description='双臂协同 MoveGroup 名称'
     )
     
+    control_mode_arg = DeclareLaunchArgument(
+        'control_mode',
+        default_value='compliant',
+        description='控制模式: rigid, compliant, opt_1, etc.'
+    )
+    
     approach_height_arg = DeclareLaunchArgument(
         'approach_height',
         default_value='0.15',
@@ -144,6 +151,7 @@ def generate_launch_description():
         left_arm_group_arg,
         right_arm_group_arg,
         dual_arm_group_arg,
+        control_mode_arg,
         approach_height_arg,
         grasp_height_arg,
         lift_height_arg,

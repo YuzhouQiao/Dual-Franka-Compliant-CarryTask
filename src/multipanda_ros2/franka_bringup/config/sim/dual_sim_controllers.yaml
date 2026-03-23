@@ -17,6 +17,10 @@ controller_manager:
   ros__parameters:
     update_rate: 1000  # Hz
 
+    force_torque_sensor_broadcaster_left:
+      type: force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
+    force_torque_sensor_broadcaster_right:
+      type: force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
     franka_left_robot_state_broadcaster:
@@ -155,3 +159,12 @@ dual_panda_arm_controller:
     constraints:
       stopped_velocity_tolerance: 0.01
       goal_time: 0.0
+force_torque_sensor_broadcaster_left:
+  ros__parameters:
+    sensor_name: mj_left_hand_ft_sensor
+    frame_id: mj_left_hand
+
+force_torque_sensor_broadcaster_right:
+  ros__parameters:
+    sensor_name: mj_right_hand_ft_sensor
+    frame_id: mj_right_hand

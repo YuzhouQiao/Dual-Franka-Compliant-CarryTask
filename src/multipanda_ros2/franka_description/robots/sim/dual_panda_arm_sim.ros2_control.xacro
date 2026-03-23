@@ -43,6 +43,24 @@
       <xacro:configure_joint joint_name="${ns_2}_joint6" initial_position="${initial_positions_list_2[5]}"/>
       <xacro:configure_joint joint_name="${ns_2}_joint7" initial_position="${initial_positions_list_2[6]}"/>
       
+      <sensor name="mj_left_hand_ft_sensor">
+        <param name="frame_id">mj_left_hand</param>
+        <state_interface name="force.x"/>
+        <state_interface name="force.y"/>
+        <state_interface name="force.z"/>
+        <state_interface name="torque.x"/>
+        <state_interface name="torque.y"/>
+        <state_interface name="torque.z"/>
+      </sensor>
+      <sensor name="mj_right_hand_ft_sensor">
+        <param name="frame_id">mj_right_hand</param>
+        <state_interface name="force.x"/>
+        <state_interface name="force.y"/>
+        <state_interface name="force.z"/>
+        <state_interface name="torque.x"/>
+        <state_interface name="torque.y"/>
+        <state_interface name="torque.z"/>
+      </sensor>
     </ros2_control>
   </xacro:macro>
 </robot>

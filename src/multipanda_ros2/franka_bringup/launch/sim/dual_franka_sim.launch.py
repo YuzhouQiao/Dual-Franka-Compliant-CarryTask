@@ -165,6 +165,18 @@ def generate_launch_description():
             arguments=['joint_state_broadcaster', '-c', concatenate_ns(ns, 'controller_manager', True)],
             output='screen',
         ),
+        Node(
+            package='controller_manager',
+            executable='spawner',
+            arguments=['force_torque_sensor_broadcaster_left', '-c', concatenate_ns(ns, 'controller_manager', True)],
+            output='screen',
+        ),
+        Node(
+            package='controller_manager',
+            executable='spawner',
+            arguments=['force_torque_sensor_broadcaster_right', '-c', concatenate_ns(ns, 'controller_manager', True)],
+            output='screen',
+        ),
         Node(package='rviz2',
              executable='rviz2',
              name='rviz2',

@@ -27,6 +27,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_lifecycle/state.hpp>
 #include <std_msgs/msg/bool.hpp>
+#include <std_msgs/msg/float64_multi_array.hpp>
 
 #include <atomic>
 #include <boost/thread.hpp>
@@ -149,11 +150,14 @@ class FrankaMjHardwareSystem : public mujoco_ros2_control::MujocoRos2SystemInter
   std::atomic<bool> weld_active_desired_{false};
   bool weld_currently_active_ = false;
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr weld_sub_;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr adaptive_pub_;
   rclcpp::Node::SharedPtr weld_node_;
   void updateWeldRelpose();       // 计算左手→铝棒 relpose
   void updateWeldRelposeRight();  // 计算右手→铝棒 relpose
 
   const std::string k_robot_state_interface_name{"robot_state"};
+  std::vector<double> hw_sensor_states_;
+  std::map<std::string, std::pair<int, int>> ft_sensor_mj_ids_;
   const std::string k_robot_model_interface_name{"robot_model"};
 };
 }  // namespace franka_hardware
