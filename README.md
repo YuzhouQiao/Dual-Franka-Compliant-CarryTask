@@ -280,8 +280,10 @@ pkill -9 rviz2
 
 本仓库包含了能够完整重现双臂协作搬运的全部核心代码和脚本，同时移除了所有体积庞大的环境依赖包及编译残留。
 
-- `src/`: 核心的ROS 2源代码目录。这其中包括了经过特别修改以适应本项目的 `mujoco_ros_pkgs` 插件，以及由 `dual_arm_panda_v2` 衍生的 `multipanda_ros2` 协作底层。**千万不要随意丢弃此文件夹**。
-- 根目录脚本: 诸如 `start_dual_arm_task.sh`（总控启动脚本）、`vision_core.py`（视觉中枢）、`sensor_dashboard.py`（数据看板）均存放在此，它们能够直调底层编译后的ROS资源。
+
+- `src/`: 核心的ROS 2源代码包（包含 `multipanda_ros2`、`mujoco_ros_pkgs` 及 `dual_arm_*` 独立控制、描述、任务包）。此前误散落在根目录的重复包已被彻底合并并清理至此，保持纯净标准的 ROS 2 工作空间结构。
+- `scripts/patches/`: 我们为了修复不同依赖库与插件所用的 Python 脚本工具现已分类至此，不再污染主目录。
+- 根目录脚本: 仅保留功能核心，诸如 `start_dual_arm_task.sh`（总控启动脚本）、`vision_core.py`（视觉中枢）、`sensor_dashboard.py`（数据看板）均存放在此，它们能够直调底层编译后的ROS资源。
 - `.gitignore`: 已经为您做好了严谨的分类，任何涉及到本地环境构建的（例如 `build/`, `install/`, `log/`），以及巨型测试数据文件夹 `experiment_data/` 均已被安全跳过。每次将改动 `git push` 到 GitHub 时都将自动为您节省大量空间。
 
 ### 第一次拉取(Clone)仓库后该怎么做？

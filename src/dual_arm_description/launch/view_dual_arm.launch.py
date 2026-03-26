@@ -30,13 +30,14 @@ def generate_launch_description():
         package="robot_state_publisher",
         executable="robot_state_publisher",
         output="both",
-        parameters=[robot_description],
+        parameters=[robot_description, {'use_sim_time': True}],
     )
 
     # 5. 节点：关节状态发布 GUI
     joint_state_publisher_gui_node = Node(
         package="joint_state_publisher_gui",
         executable="joint_state_publisher_gui",
+        parameters=[{'use_sim_time': True}],
     )
 
     # 6. 节点：RViz2
@@ -45,6 +46,7 @@ def generate_launch_description():
         executable="rviz2",
         name="rviz2",
         output="log",
+        parameters=[{'use_sim_time': True}],
     )
 
     return LaunchDescription([

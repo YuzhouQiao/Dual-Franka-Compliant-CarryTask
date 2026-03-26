@@ -1,4 +1,9 @@
 from setuptools import find_packages, setup
+import warnings
+
+# 屏蔽系统级 Python 包版本号不规范导致的警告 (如 "1.1build1 is an invalid version")
+warnings.filterwarnings("ignore", category=UserWarning, module='setuptools')
+warnings.filterwarnings("ignore", message=".*is an invalid version.*")
 
 package_name = 'dual_arm_task'
 
