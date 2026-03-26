@@ -34,5 +34,9 @@
   <worldbody>
     <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
     <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
+
+    <!-- 俯视全景摄像头 (Eye-to-hand) -->
+    <!-- xyaxes="0 -1 0 1 0 0": 使画面上方为场景的前方(+X), 画面右侧为场景的右侧(-Y) -->
+    <camera name="overhead_camera" pos="0.5 0.0 1.5" xyaxes="0 -1 0 1 0 0" fovy="60"/>
   </worldbody>
 </mujoco>

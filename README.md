@@ -275,3 +275,23 @@ pkill -9 rviz2
 ---
 
 **现在就开始！运行 `./start_dual_arm_task.sh` 🚀**
+
+## 📁 仓库与文件结构说明 (GitHub Repository Structure)
+
+本仓库包含了能够完整重现双臂协作搬运的全部核心代码和脚本，同时移除了所有体积庞大的环境依赖包及编译残留。
+
+- `src/`: 核心的ROS 2源代码目录。这其中包括了经过特别修改以适应本项目的 `mujoco_ros_pkgs` 插件，以及由 `dual_arm_panda_v2` 衍生的 `multipanda_ros2` 协作底层。**千万不要随意丢弃此文件夹**。
+- 根目录脚本: 诸如 `start_dual_arm_task.sh`（总控启动脚本）、`vision_core.py`（视觉中枢）、`sensor_dashboard.py`（数据看板）均存放在此，它们能够直调底层编译后的ROS资源。
+- `.gitignore`: 已经为您做好了严谨的分类，任何涉及到本地环境构建的（例如 `build/`, `install/`, `log/`），以及巨型测试数据文件夹 `experiment_data/` 均已被安全跳过。每次将改动 `git push` 到 GitHub 时都将自动为您节省大量空间。
+
+### 第一次拉取(Clone)仓库后该怎么做？
+如果你或你的组员刚刚在另一台机器上 clone 了本仓库，**必须先进行编译**，否则无法运行脚本：
+```bash
+cd ~/mujoco_franka/franka_ws
+# 编译所有必须模块
+colcon build
+# 读取环境变量
+source install/setup.bash
+# 开始测试
+./start_dual_arm_task.sh
+```

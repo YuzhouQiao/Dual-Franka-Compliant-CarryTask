@@ -1,8 +1,21 @@
+# Build Artifacts
 build/
 install/
 log/
 launch_logs/
-src/mujoco_ros_pkgs/
-*.pyc
+.catkin_workspace
+COLCON_IGNORE
+compile_commands.json
+
+# Python
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Editor
+.vscode/
+.idea/
+
+# Large test data
 experiment_data/

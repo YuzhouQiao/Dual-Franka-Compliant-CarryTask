@@ -46,24 +46,96 @@ echo "  双臂搬运任务 - 完整启动"
 echo "========================================"
 echo ""
 
-# 提示用户选择控制模式
-echo "请选择要运行的实验模式:"
-echo "  1) rigid             - 刚性对照模式 (无导纳柔顺, 无CHOMP)"
-echo "  2) compliant         - 柔顺控制模式 (强导纳柔顺, 无CHOMP)"
-echo "  3) chomp_only        - 仅限优化模式 (无导纳柔顺, 强CHOMP顺滑)"
-echo "  4) compliant_chomp   - 全功能模式   (强导纳柔顺 + 强CHOMP顺滑) [默认]"
-read -p "请输入模式编号 [默认: 4]: " MODE_SELECTION
+# ----------------- 模式选择逻辑重构 (添加视觉模组接口) -----------------
+echo "请选择要运行的大模式 (A 或 B):"
+echo "  A) 经典固态搬运模式 (固定测试坐标，现有算法保底闭环)"
+echo "  B) 视觉动态抓取模式 (引入视觉感知，由用户指定初始与目标位置)"
+read -p "请输入大模式代号 [默认: A]: " MAIN_MODE
 
-case "$MODE_SELECTION" in
-    1) CONTROL_MODE="rigid" ;;
-    2) CONTROL_MODE="compliant" ;;
-    3) CONTROL_MODE="chomp_only" ;;
-    4) CONTROL_MODE="compliant_chomp" ;;
-    *) CONTROL_MODE="compliant_chomp" ;; # 默认选4
-esac
+if [[ "$MAIN_MODE" == "B" || "$MAIN_MODE" == "b" ]]; then
+    export TASK_MAIN_MODE="B"
+    echo ""
+    echo "========================================"
+    echo "  [模式 B] 视觉动态感知与搬运"
+    echo "========================================"
+    echo "机器人双臂协作存在运动学约束，请输入物体的空间坐标(单位:m)。"
+    echo "【推荐公共工作空间范围】"
+    echo "  ▶ 前后(X)范围: [0.35, 0.65]"
+    echo "  ▶ 左右(Y)范围: [-0.25, 0.25]"
+    echo ""
+    
+    # 定义输入验证函数，确保数据在物理合理范围内
+    get_valid_input() {
+        local prompt="$1"
+        local default_val="$2"
+        local min_val="$3"
+        local max_val="$4"
+        local var_name="$5"
+        local input_val
+        
+        while true; do
+            read -p "$prompt [默认: $default_val]: " input_val
+            input_val=${input_val:-$default_val}
+            
+            # 使用 awk 验证是否为数字且在范围内
+            if ! awk -v val="$input_val" -v min="$min_val" -v max="$max_val" 'BEGIN {
+                if (val !~ /^[-+]?[0-9]*\.?[0-9]+$/) { exit 1 }
+                if (val < min || val > max) { exit 2 }
+                exit 0
+            }'; then
+                local exit_code=$?
+                if [ $exit_code -eq 1 ]; then
+                    echo "  ❌ 错误: '$input_val' 不是有效的数字！"
+                elif [ $exit_code -eq 2 ]; then
+                    echo "  ❌ 错误: '$input_val' 超出合理工作空间 [$min_val, $max_val]，会导致无逆解或干涉，请重新输入。"
+                fi
+                continue
+            fi
+            
+            export $var_name="$input_val"
+            break
+        done
+    }
+
+    # 通过环境变量传参，实施严格边界管控
+    get_valid_input "1. 设定铝棒初始 X 坐标" "0.50" "0.30" "0.70" "ROD_INIT_X"
+    get_valid_input "2. 设定铝棒初始 Y 坐标" "0.00" "-0.25" "0.25" "ROD_INIT_Y"
+    get_valid_input "3. 设定铝棒初始偏航角(Yaw) (度, -90~90)" "0" "-90" "90" "ROD_INIT_YAW"
+    echo ""
+    get_valid_input "4. 设定放置目标 X 坐标" "0.40" "0.30" "0.70" "ROD_TARGET_X"
+    get_valid_input "5. 设定放置目标 Y 坐标" "-0.20" "-0.25" "0.25" "ROD_TARGET_Y"
+    get_valid_input "6. 设定放置目标偏航角(Yaw) (度, -90~90)" "90" "-90" "90" "ROD_TARGET_YAW"
+
+    echo ""
+    echo "✅ 动态位姿已锁定 -> 初始位置:(X:${ROD_INIT_X}, Y:${ROD_INIT_Y}, 角度:${ROD_INIT_YAW}°) | 目标位置:(X:${ROD_TARGET_X}, Y:${ROD_TARGET_Y}, 角度:${ROD_TARGET_YAW}°)"
+    
+    # 模式B直接默认使用最好的自适应架构
+    CONTROL_MODE="vision_compliant_chomp"
+
+else
+    export TASK_MAIN_MODE="A"
+    echo ""
+    echo "========================================"
+    echo "  [模式 A] 经典固态搬运 (作为基础对照与保底)"
+    echo "========================================"
+    echo "请选择内部的测试子模式:"
+    echo "  1) rigid             - 刚性对照模式 (无导纳柔顺, 无CHOMP)"
+    echo "  2) compliant         - 柔顺控制模式 (强导纳柔顺, 无CHOMP)"
+    echo "  3) chomp_only        - 仅限优化模式 (无导纳柔顺, 强CHOMP顺滑)"
+    echo "  4) compliant_chomp   - 全功能模式   (强导纳柔顺 + 强CHOMP顺滑) [默认]"
+    read -p "请输入模式编号 [默认: 4]: " MODE_SELECTION
+
+    case "$MODE_SELECTION" in
+        1) CONTROL_MODE="rigid" ;;
+        2) CONTROL_MODE="compliant" ;;
+        3) CONTROL_MODE="chomp_only" ;;
+        4) CONTROL_MODE="compliant_chomp" ;;
+        *) CONTROL_MODE="compliant_chomp" ;; # 默认选4
+    esac
+fi
 
 echo ""
-echo "✅ 选择的模式: ===[ $CONTROL_MODE ]==="
+echo "✅ 最终设定的运行配置: ===[ 大模式: ${TASK_MAIN_MODE} | 核心策略: ${CONTROL_MODE} ]==="
 echo ""
 echo "日志目录: $LOG_DIR"
 echo "诊断日志: $DIAG_LOG"
@@ -149,6 +221,22 @@ else
 fi
 echo ""
 
+# 2.5 动态更新模型物体位置
+if [[ "$TASK_MAIN_MODE" == "B" ]]; then
+    echo "[2.5] (模式 B) 动态更新 MuJoCo 物体初始状态..."
+    ROD_YAW_RAD=$(awk "BEGIN {print $ROD_INIT_YAW * 3.14159265 / 180}")
+    OBJECTS_XML="${WORKSPACE_DIR}/src/multipanda_ros2/franka_description/mujoco/franka/objects.xml"
+    INSTALL_OBJECTS_XML="${WORKSPACE_DIR}/install/franka_description/share/franka_description/mujoco/franka/objects.xml"
+    
+    # 动态匹配并替换 obj_rod_01 标签属性
+    if [ -f "$OBJECTS_XML" ]; then
+        sed -i -E "s/<body name=\"obj_rod_01\"[^>]*>/<body name=\"obj_rod_01\" pos=\"${ROD_INIT_X} ${ROD_INIT_Y} 0.02\" euler=\"0 0 ${ROD_YAW_RAD}\">/g" "$OBJECTS_XML"
+        cp "$OBJECTS_XML" "$INSTALL_OBJECTS_XML" 2>/dev/null || true
+        echo "  ✓ 铝棒生成位置已动态修改 -> pos: ${ROD_INIT_X} ${ROD_INIT_Y} 0.02, euler: 0 0 ${ROD_YAW_RAD}"
+    fi
+    echo ""
+fi
+
 # 3. 启动 MoveIt2 (自动启动 MuJoCo)
 echo "[3/4] 启动 MoveIt2 和 MuJoCo..."
 echo "注意: MoveIt2 会自动启动 MuJoCo 仿真"
@@ -212,86 +300,91 @@ echo ""
 echo "✓ MoveIt2 和 MuJoCo 已启动"
 echo ""
 
-# 4. 启动任务节点
-echo "[4/5] 启动双臂搬运任务节点 ($CONTROL_MODE 模式)..."
-sleep 5
+if [[ "$TASK_MAIN_MODE" == "A" ]]; then
+    # 4. 启动任务节点
+    echo "[4/5] 启动双臂搬运任务节点 ($CONTROL_MODE 模式)..."
+    sleep 5
 
-TASK_LOG="${LOG_DIR}/dual_arm_task_${TIMESTAMP}.log"
-echo "日志: $TASK_LOG"
+    TASK_LOG="${LOG_DIR}/dual_arm_task_${TIMESTAMP}.log"
+    echo "日志: $TASK_LOG"
 
-ros2 launch dual_arm_carry_task dual_arm_carry_task.launch.py control_mode:=${CONTROL_MODE} > "$TASK_LOG" 2>&1 &
-TASK_PID=$!
-echo "进程 PID: $TASK_PID"
-echo $TASK_PID >> "$PID_FILE"
+    ros2 launch dual_arm_carry_task dual_arm_carry_task.launch.py control_mode:=${CONTROL_MODE} > "$TASK_LOG" 2>&1 &
+    TASK_PID=$!
+    echo "进程 PID: $TASK_PID"
+    echo $TASK_PID >> "$PID_FILE"
 
-sleep 3
+    sleep 3
 
-# 检查任务节点是否启动
-if ! ps -p $TASK_PID > /dev/null; then
-    echo "✗ 任务节点启动失败，请检查日志: $TASK_LOG"
-    exit 1
+    # 检查任务节点是否启动
+    if ! ps -p $TASK_PID > /dev/null; then
+        echo "✗ 任务节点启动失败，请检查日志: $TASK_LOG"
+        exit 1
+    fi
+
+    echo ""
+
+    # 5. 启动传感器监控及控制参数 GUI
+    echo "[5/5] 启动传感器可视化与参数调优 GUI..."
+    python3 "${WORKSPACE_DIR}/sensor_dashboard.py" "$CONTROL_MODE" > "${LOG_DIR}/sensor_gui_${TIMESTAMP}.log" 2>&1 &
+    GUI_PID=$!
+    echo "进程 PID: $GUI_PID"
+    echo $GUI_PID >> "$PID_FILE"
+
+    echo ""
+    echo "========================================"
+    echo "  ✓ 所有固定搬运组件 (Mode A) 及 GUI 已启动"
+    echo "========================================"
+    echo ""
+    echo "组件状态:"
+    echo "  • MoveIt2 + MuJoCo: PID $MOVEIT_PID"
+    echo "  • 任务节点: PID $TASK_PID"
+    echo "  • 可视化终端: PID $GUI_PID"
+    echo ""
+    echo "日志位置:"
+    echo "  • MoveIt/MuJoCo: $MOVEIT_LOG"
+    echo "  • 任务节点: $TASK_LOG"
+    echo "  • 诊断日志: $DIAG_LOG"
+    echo ""
+    echo "所有组件已顺利启动！机器开始全自动执行固定预编任务流程..."
+    echo "========================================"
+    echo ""
+
+    # 监控 GUI 进程，直到其因收到任务 DONE 状态发布而自动安全退出 (耗时约几十秒)
+    wait $GUI_PID
+
+    echo ""
+    echo "========================================"
+    echo "🎓 监测到全流程搬运已完成，开始读取整周期CSV数据并绘制高精度分析图..."
+    echo "========================================"
+    python3 "${WORKSPACE_DIR}/plot_experiment_results.py"
+
+    echo ""
+    echo "⭐⭐图表计算/输出完毕！任务圆满结束。⭐⭐"
+    echo "请前往 mujoco_franka/franka_ws/experiment_data 文件夹查看此轮的对比结果图。"
+
+else
+    echo "[4/4] 视觉感知与动态搬运模式 (Mode B) 环境就绪..."
+    echo "注意: 模式B有独立的研究路线，旧有的大屏绘图仪表盘(GUI)及固定C++工作流任务已被隔离。"
+    
+    # 还可以顺便唤起你刚刚创建的视觉桥接核心
+    echo "正在拉起自定义顶置相机与视觉处理沙盒(vision_core.py)..."
+    python3 "${WORKSPACE_DIR}/vision_core.py" > "${LOG_DIR}/vision_core_${TIMESTAMP}.log" 2>&1 &
+    VISION_PID=$!
+    echo $VISION_PID >> "$PID_FILE"
+
+    echo ""
+    echo "========================================"
+    echo "  ✓ 基础平台(MuJoCo/RViz/MoveIt2) 和 相机节点已挂载"
+    echo "========================================"
+    echo "当前启动节点:"
+    echo "  • MoveIt2 + MuJoCo: PID $MOVEIT_PID"
+    echo "  • 视觉流桥接节点: PID $VISION_PID"
+    echo ""
+    echo "  >> 请关注 /overhead_camera/image_raw ROS话题获取实时上帝视角。"
+    echo "  >> C++硬编排节点已挂起，此时可以通过新架构或新节点发布机械臂目标轨迹。"
+    echo "========================================"
 fi
 
-echo ""
-# 5. 启动传感器监控及控制参数 GUI
-echo "[5/5] 启动传感器可视化与参数调优 GUI..."
-python3 "${WORKSPACE_DIR}/sensor_dashboard.py" "$CONTROL_MODE" > "${LOG_DIR}/sensor_gui_${TIMESTAMP}.log" 2>&1 &
-GUI_PID=$!
-echo "进程 PID: $GUI_PID"
-echo $GUI_PID >> "$PID_FILE"
-
-echo ""
-echo "========================================"
-echo "  ✓ 所有组件及 GUI 已启动"
-echo "========================================"
-echo ""
-echo "组件状态:"
-echo "  • MoveIt2 + MuJoCo: PID $MOVEIT_PID"
-echo "  • 任务节点: PID $TASK_PID"
-echo ""
-echo "日志位置:"
-echo "  • MoveIt/MuJoCo: $MOVEIT_LOG"
-echo "  • 任务节点: $TASK_LOG"
-echo "  • 诊断日志: $DIAG_LOG"
-echo ""
-echo "提示:"
-echo "  • 使用 'tail -f $TASK_LOG' 查看任务日志"
-echo "  • 使用 'tail -f $MOVEIT_LOG' 查看 MoveIt 日志"
-echo "  • 使用 'cat $DIAG_LOG' 查看诊断报告"
-echo "  • 按 Ctrl+C 停止所有进程"
-echo ""
-echo "RViz 验证:"
-echo "  • Planning Scene 中应只显示 1 个附着的铝棒（紫色）"
-echo "  • 如显示 2 个铝棒，说明独立碰撞对象未移除"
-echo "  • 附着物体会随机械臂一起移动并高亮显示"
-echo ""
-echo "手动停止命令:"
-echo "  pkill -9 -f 'ros2 launch|mujoco|rviz|move_group'"
-echo ""
-echo "MuJoCo 控制:"
-echo "  • 空格键: 暂停/继续仿真"
-echo "  • Backspace: 重置仿真"
-echo ""
-echo "========================================"
-echo "所有组件已顺利启动！机器开始全自动执行任务流程..."
-echo "注意: 数据采集端会在RETREAT任务宣告结束后自动闭合，"
-echo "      届时将在此脚本末尾，利用CSV生成一份完整的全局质量报告图！"
-echo "      若需要中途强制中断，请随时按 Ctrl+C"
-echo "========================================"
-echo ""
-
-# 监控 GUI 进程，直到其因收到任务 DONE 状态发布而自动安全退出 (耗时约几十秒)
-wait $GUI_PID
-
-echo ""
-echo "========================================"
-echo "🎓 监测到全流程搬运已完成，开始读取整周期CSV数据并绘制高精度分析图..."
-echo "========================================"
-python3 "${WORKSPACE_DIR}/plot_experiment_results.py"
-
-echo ""
-echo "⭐⭐图表计算/输出完毕！任务圆满结束。⭐⭐"
-echo "请前往 mujoco_franka/franka_ws/experiment_data 文件夹查看此轮的对比结果图。"
 echo ""
 echo "==> 现在，你可以安全地按 Ctrl+C 彻底关闭所有后台 ROS 仿真进程了！ <=="
 echo ""
